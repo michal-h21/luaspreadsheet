@@ -46,20 +46,91 @@ function Xlsx:load(filename)
     return nil, msg
   end
   self.content_types = content_types
+  -- load workbook, styles and shared_strings, save worksheets
   for _, override in ipairs(content_types:query_selector("Override")) do
-    for k,v in pairs(override._attr) do
-      print(k,v)
+    local content_type = override:get_attribute("contenttype")
+    local part_name = override:get_attribute("partname")
+    if content_type:match("sheet.main") then
+      self:load_workbook(part_name)
+    elseif content_type:match("styles") then
+      self:load_styles(part_name)
+    elseif content_type:match("sharedStrings") then
+      self:load_shared_strings(part_name)
+    -- elseif content_type:match("worksheet") then
+      -- for k,v in pairs(override._attr) do print("worksheet", k,v) end
+    elseif content_type:match("relationships") then
+      self:load_relationships(part_name)
     end
+    -- print(content_type, part_name)
     -- print(override:get_attribute("PartName"), override:get_attribute("ContentType"))
   end
   return true
 end
 
+--- Parse XML file from the xlsx archive to DOM
 function Xlsx:load_zip_xml(filename)
+  -- we must remove the slash at the beginning, the zip library
+  -- would not find the file otherwise
+  local filename = filename:gsub("^/", "")
+  print("loading: ".. filename)
   local zip_file = self.file
   return load_zip_xml(zip_file,filename)
 end
 
+function Xlsx:load_workbook(filename)
+  local workbook,msg = self:load_zip_xml(filename)
+  -- get filenames of particular worksheets
+  local path = filename:match("(.-)[^/]$")
+  print("workbook path", path)
+  self.workbook = workbook
+end
+
+function Xlsx:load_relationships(filename)
+  -- each relationship file correspond to the parent directory
+  -- so we must find that corresponding dir
+  local path = filename:match("(.-)_rels")
+  local relationships = self.relationships or {}
+  local current = {}
+  local dom = self:load_zip_xml(filename)
+  for _, el in ipairs(dom:query_selector("Relationship")) do
+    local id, target, schema = el:get_attribute("id"), el:get_attribute("target"), el:get_attribute("type") 
+    -- we must construct full path to the target file
+    local fulltarget = path .. target
+    current[id] = {target = fulltarget, type = schema}
+  end
+  relationships[path] = current
+  self.relationships = relationships
+end
+
+function Xlsx:load_styles(filename)
+  self.styles = self:load_zip_xml(filename)
+end
+
+function Xlsx:load_shared_strings(filename)
+  self.shared_strins = self:load_zip_xml(filename)
+end
+
+--- Retrieve sheet from workbook.
+-- It can be referenced either by name, or id number.
+function Xlsx:get_sheet(
+  name -- string or number
+)
+  local name = name or 1
+  local workbook = self.workbook
+  local attr = "name"
+
+  if type(name) == "number" then
+    attr = "sheetid"
+  end
+  -- print(self.workbook:serialize())
+  local selected
+  for _, sheet in ipairs(workbook:query_selector("sheets sheet")) do
+    if sheet:get_attribute(attr) == name then
+      -- selected = 
+      print("got it", sheet:get_attribute("name"))
+    end
+  end
+end
 
 M.load = load
 return M
