@@ -37,9 +37,16 @@ local function load_zip_xml(zipfile, path)
   return dom
 end
 
+--- Log internall messages and errors
+function Xlsx:message(msg, level)
+  local level = level or 0
+  table.insert(self.log, {message = msg, level = level})
+end
+
 function Xlsx:load(filename)
   local zip_file = zip.open(filename)
   self.file = zip_file
+  self.log = {}
   -- load file with pointer to other files
   local content_types, msg = self:load_zip_xml("[Content_Types].xml")
   if not content_types then
@@ -80,8 +87,9 @@ end
 function Xlsx:load_workbook(filename)
   local workbook,msg = self:load_zip_xml(filename)
   -- get filenames of particular worksheets
-  local path = filename:match("(.-)[^/]$")
-  print("workbook path", path)
+  local directory = filename:match("(.-)[^/]+$")
+  workbook.directory = directory
+  self:message("workbook path:".. directory)
   self.workbook = workbook
 end
 
@@ -118,7 +126,13 @@ function Xlsx:get_sheet(
   local name = name or 1
   local workbook = self.workbook
   local attr = "name"
-
+  -- the path to sheet file is saved in the relationships table
+  -- there are several of such tables, for different directories
+  -- we must retrieve the one for the directory where the workbook
+  -- file lies
+  local relationships = self.relationships or {}
+  local directory = workbook.directory
+  local rel_table = relationships[directory] or {}
   if type(name) == "number" then
     attr = "sheetid"
   end
@@ -127,7 +141,8 @@ function Xlsx:get_sheet(
   for _, sheet in ipairs(workbook:query_selector("sheets sheet")) do
     if sheet:get_attribute(attr) == name then
       -- selected = 
-      print("got it", sheet:get_attribute("name"))
+      local rid = sheet:get_attribute("r:id")
+      print("got it", sheet:get_attribute("name"), rid, rel_table[rid].target)
     end
   end
 end
