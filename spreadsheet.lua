@@ -8,4 +8,5 @@ if not obj then
   os.exit()
 end
 
+local sheet = obj:get_sheet("Sheet1")
 
