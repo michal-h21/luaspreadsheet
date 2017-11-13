@@ -135,6 +135,9 @@ function Xlsx:get_sheet(
   local rel_table = relationships[directory] or {}
   if type(name) == "number" then
     attr = "sheetid"
+    -- the attribute value is string, so we must convert the name
+    -- to string to assure they match
+    name = tostring(name)
   end
   -- print(self.workbook:serialize())
   local selected
