@@ -3,10 +3,14 @@ local M = {}
 local zip = require "zip"
 local domobject = require "luaxml-domobject"
 local log = require "spreadsheet.log"
+local ranges = require "spreadsheet.ranges"
 
 
 --- @type Xlsx object
 local Xlsx = {}
+
+--- @type Sheet object
+local Sheet ={}
 
 --- load the xlsx file
 -- @return Xlsx object
@@ -158,7 +162,9 @@ function Xlsx:load_sheet(name)
     print(sel,dom:query_selector(sel)[1]:serialize())
   end
   -- xxx("sheetData")
-  xxx("dimension")
+  local dimension = dom:query_selector("dimension")[1]:get_attribute("ref")
+  print(ranges.get_range(dimension))
+  -- xxx("dimension")
   xxx("sheetViews")
   xxx("cols")
   log.info("sheet ".. name .. " has " ..rows .. " rows")
