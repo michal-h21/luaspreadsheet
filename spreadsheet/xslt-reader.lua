@@ -40,6 +40,7 @@ end
 
 
 function Xlsx:load(filename)
+  log.info("Loading "..filename)
   local zip_file = zip.open(filename)
   self.file = zip_file
   self.log = {}
@@ -77,15 +78,31 @@ function Xlsx:load_zip_xml(filename)
   local filename = filename:gsub("^/", "")
   log.info("loading: ".. filename)
   local zip_file = self.file
-  return load_zip_xml(zip_file,filename)
+  local dom, msg = load_zip_xml(zip_file,filename)
+  if not dom then 
+    log.error("Cannot parse XML from " .. filename)
+  end
+  return dom, msg
 end
 
 function Xlsx:load_workbook(filename)
   local workbook,msg = self:load_zip_xml(filename)
-  -- get filenames of particular worksheets
+  -- because the paths in _rels table are relative to the current 
+  -- directory, we must save the current path, which will be then 
+  -- used in the file loading
   local directory = filename:match("(.-)[^/]+$")
   workbook.directory = directory
   log.info("workbook path:".. directory)
+  local sheets = {}
+  -- save the worksheet names and identifiers
+  for _, sheet in ipairs(workbook:query_selector("sheet")) do
+    sheets[#sheets+1] = {
+      name = sheet:get_attribute("name"),
+      sheetid = sheet:get_attribute("sheetid"),
+      id = sheet:get_attribute("r:id")
+    }
+  end
+  self.sheets = sheets
   self.workbook = workbook
 end
 
@@ -114,14 +131,8 @@ function Xlsx:load_shared_strings(filename)
   self.shared_strins = self:load_zip_xml(filename)
 end
 
---- Retrieve sheet from workbook.
--- It can be referenced either by name, or id number.
-function Xlsx:get_sheet(
-  name -- string or number
-)
-  local name = name or 1
+function Xlsx:find_file_by_id(rid)
   local workbook = self.workbook
-  local attr = "name"
   -- the path to sheet file is saved in the relationships table
   -- there are several of such tables, for different directories
   -- we must retrieve the one for the directory where the workbook
@@ -129,30 +140,63 @@ function Xlsx:get_sheet(
   local relationships = self.relationships or {}
   local directory = workbook.directory
   local rel_table = relationships[directory] or {}
+  local relation_dest = rel_table[rid]
+  if relation_dest then
+    local target = relation_dest.target
+    log.info("Found file for id " .. rid.. ": ".. target)
+    return target
+  end
+  local msg = "Cannot find file id " .. rid
+  log.error(msg)
+  return nil, msg
+end
+
+function Xlsx:load_sheet(name)
+  local dom = self:load_zip_xml(name)
+  local rows = #dom:query_selector("row")
+  local function xxx(sel)
+    print(sel,dom:query_selector(sel)[1]:serialize())
+  end
+  -- xxx("sheetData")
+  xxx("dimension")
+  xxx("sheetViews")
+  xxx("cols")
+  log.info("sheet ".. name .. " has " ..rows .. " rows")
+  return dom
+end
+
+function Xlsx:find_sheet_id(name)
+  local name = name or 1
+  local attr = "name"
   if type(name) == "number" then
     attr = "sheetid"
     -- the attribute value is string, so we must convert the name
     -- to string to assure they match
-    name = tostring(name)
   end
-  -- print(self.workbook:serialize())
-  local selected
-  for _, sheet in ipairs(workbook:query_selector("sheets sheet")) do
-    if sheet:get_attribute(attr) == name then
-      -- selected = 
-      local rid = sheet:get_attribute("r:id")
-      local relation_dest = rel_table[rid]
-      if relation_dest then
-        local target = relation_dest.target
-        log.info("found sheet", sheet:get_attribute("name"), rid, target)
-        return target
-      else
-        local msg = "Cannot find sheet " .. name
-        log.error(msg)
-        return nil, msg
-      end
+  name = tostring(name)
+  for _, sheet in ipairs(self.sheets) do
+    if sheet[attr] == name then
+      return sheet.id
     end
   end
+end
+
+--- Retrieve sheet from workbook.
+-- It can be referenced either by name, or id number.
+function Xlsx:get_sheet(
+  name -- string or number
+)
+  local rid = self:find_sheet_id(name)
+  if rid then
+    local target, msg = self:find_file_by_id(rid)
+    if target then
+      return self:load_sheet(target)
+    end
+    return nil, msg
+  end
+  local msg = "Cannot find sheet " .. name
+  log.error(msg)
+  return nil, msg
 end
 
 M.load = load
