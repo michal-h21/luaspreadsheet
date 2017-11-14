@@ -2,6 +2,7 @@
 local M = {}
 local zip = require "zip"
 local domobject = require "luaxml-domobject"
+local log = require "spreadsheet.log"
 
 
 --- @type Xlsx object
@@ -37,11 +38,6 @@ local function load_zip_xml(zipfile, path)
   return dom
 end
 
---- Log internall messages and errors
-function Xlsx:message(msg, level)
-  local level = level or 0
-  table.insert(self.log, {message = msg, level = level})
-end
 
 function Xlsx:load(filename)
   local zip_file = zip.open(filename)
@@ -79,7 +75,7 @@ function Xlsx:load_zip_xml(filename)
   -- we must remove the slash at the beginning, the zip library
   -- would not find the file otherwise
   local filename = filename:gsub("^/", "")
-  print("loading: ".. filename)
+  log.info("loading: ".. filename)
   local zip_file = self.file
   return load_zip_xml(zip_file,filename)
 end
@@ -89,7 +85,7 @@ function Xlsx:load_workbook(filename)
   -- get filenames of particular worksheets
   local directory = filename:match("(.-)[^/]+$")
   workbook.directory = directory
-  self:message("workbook path:".. directory)
+  log.info("workbook path:".. directory)
   self.workbook = workbook
 end
 
@@ -145,7 +141,16 @@ function Xlsx:get_sheet(
     if sheet:get_attribute(attr) == name then
       -- selected = 
       local rid = sheet:get_attribute("r:id")
-      print("got it", sheet:get_attribute("name"), rid, rel_table[rid].target)
+      local relation_dest = rel_table[rid]
+      if relation_dest then
+        local target = relation_dest.target
+        log.info("found sheet", sheet:get_attribute("name"), rid, target)
+        return target
+      else
+        local msg = "Cannot find sheet " .. name
+        log.error(msg)
+        return nil, msg
+      end
     end
   end
 end
