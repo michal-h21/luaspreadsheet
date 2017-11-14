@@ -8,9 +8,11 @@ local ranges = require "spreadsheet.ranges"
 
 --- @type Xlsx object
 local Xlsx = {}
+Xlsx.__index = Xlsx
 
 --- @type Sheet object
 local Sheet ={}
+Sheet.__index = Sheet
 
 --- load the xlsx file
 -- @return Xlsx object
@@ -20,7 +22,6 @@ local function load(filename)
   if not f then return nil, "File ".. filename .. " not found" end
   f:close()
   local xlsx_obj = setmetatable({}, Xlsx)
-  Xlsx.__index = Xlsx
   local status, msg = xlsx_obj:load(filename)
   if not status then
     return nil, msg
@@ -157,18 +158,10 @@ end
 
 function Xlsx:load_sheet(name)
   local dom = self:load_zip_xml(name)
-  local rows = #dom:query_selector("row")
-  local function xxx(sel)
-    print(sel,dom:query_selector(sel)[1]:serialize())
-  end
-  -- xxx("sheetData")
-  local dimension = dom:query_selector("dimension")[1]:get_attribute("ref")
-  print(ranges.get_range(dimension))
-  -- xxx("dimension")
-  xxx("sheetViews")
-  xxx("cols")
-  log.info("sheet ".. name .. " has " ..rows .. " rows")
-  return dom
+  local sheet_obj = setmetatable({}, Sheet)
+  sheet_obj:set_parent(self)
+  sheet_obj:load_dom(name, dom)
+  return sheet_obj
 end
 
 function Xlsx:find_sheet_id(name)
@@ -203,6 +196,25 @@ function Xlsx:get_sheet(
   local msg = "Cannot find sheet " .. name
   log.error(msg)
   return nil, msg
+end
+
+function Sheet:set_parent(parent)
+  self.parent = parent
+end
+
+function Sheet:load_dom(name, dom)
+  local rows = #dom:query_selector("row")
+  local function xxx(sel)
+    print(sel,dom:query_selector(sel)[1]:serialize())
+  end
+  -- xxx("sheetData")
+  local dimension = dom:query_selector("dimension")[1]:get_attribute("ref")
+  print(ranges.get_range(dimension))
+  -- xxx("dimension")
+  xxx("sheetViews")
+  xxx("cols")
+  log.info("sheet ".. name .. " has " ..rows .. " rows")
+  return dom
 end
 
 M.load = load
