@@ -12,3 +12,7 @@
 ## Package structure 
 - http://officeopenxml.com/anatomyofOOXML-xlsx.php
 
+
+# Used libraries
+
+spreadseet/log.lua: https://github.com/rxi/log.lua
