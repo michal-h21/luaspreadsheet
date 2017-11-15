@@ -1,5 +1,8 @@
 # Links:
 
+##
+- specification: https://blogs.msdn.microsoft.com/chrisrae/2010/09/25/where-is-the-documentation-for-offices-docxxlsxpptx-formats-part-1-office-2007/
+
 ## cells and rows
 - https://stackoverflow.com/questions/18334314/what-do-excel-xml-cell-attribute-values-mean/18346273#18346273
 - [row class](https://msdn.microsoft.com/en-us/library/office/documentformat.openxml.spreadsheet.row.aspx)
