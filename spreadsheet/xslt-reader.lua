@@ -115,6 +115,22 @@ function Xlsx:load_workbook(filename)
   self.workbook = workbook
 end
 
+--- normalize relative paths
+function Xlsx:normalize_path(path)
+  local parts = {}
+  -- this regexp doesn't keep the leading slash, but it doesn't matter
+  -- because we need to get rid of it anyway
+  for part in path:gmatch("([^%/]+)") do
+    -- remove the up directory when we find the ".." part
+    if part == ".." then
+      parts[#parts] = nil
+    else
+      parts[#parts+1] = part
+    end
+  end
+  return table.concat(parts, "/")
+end
+
 function Xlsx:load_relationships(filename)
   -- each relationship file correspond to the parent directory
   -- so we must find that corresponding dir
