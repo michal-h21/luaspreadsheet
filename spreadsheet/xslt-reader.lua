@@ -228,8 +228,17 @@ function Xlsx:get_sheet(
   return nil, msg
 end
 
-function Sheet:set_parent(parent)
+function Sheet:set_parent(parent,filename)
   self.parent = parent
+  self.relationships = parent.relationships
+  self.directory = parent:get_directory(filename)
+  self.load_zip_xml = parent.load_zip_xml
+  self.find_file_by_id = parent.find_file_by_id
+  self.file = parent.file
+end
+
+function Sheet:get_parent()
+  return self.parent
 end
 
 function Sheet:load_dom(name, dom)
