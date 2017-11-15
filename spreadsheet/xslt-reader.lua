@@ -90,12 +90,16 @@ function Xlsx:load_zip_xml(filename)
   return dom, msg
 end
 
+function Xlsx:get_directory(filename)
+  return filename:match("(.-)[^/]+$")
+end
+
 function Xlsx:load_workbook(filename)
   local workbook,msg = self:load_zip_xml(filename)
   -- because the paths in _rels table are relative to the current 
   -- directory, we must save the current path, which will be then 
   -- used in the file loading
-  local directory = filename:match("(.-)[^/]+$")
+  local directory = self:get_directory(filename)
   workbook.directory = directory
   log.info("workbook path:".. directory)
   local sheets = {}
