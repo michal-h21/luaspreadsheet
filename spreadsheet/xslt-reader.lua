@@ -150,21 +150,30 @@ function Xlsx:load_relationships(filename)
 end
 
 function Xlsx:load_styles(filename)
-  self.styles = self:load_zip_xml(filename)
+  local  dom = self:load_zip_xml(filename)
+  -- for _, cell in ipairs(dom:query_selector("cellStyle")) do
+    -- print(cell:serialize())
+  -- end
+  self.styles = dom
 end
 
 function Xlsx:load_shared_strings(filename)
-  self.shared_strins = self:load_zip_xml(filename)
+  local string_dom = self:load_zip_xml(filename)
+  -- print(string_dom:serialize())
+  self.shared_strings = string_dom
 end
 
-function Xlsx:find_file_by_id(rid)
+function Xlsx:find_file_by_id(rid,directory)
   local workbook = self.workbook
   -- the path to sheet file is saved in the relationships table
   -- there are several of such tables, for different directories
   -- we must retrieve the one for the directory where the workbook
   -- file lies
   local relationships = self.relationships or {}
-  local directory = workbook.directory
+  local directory = directory or  workbook.directory
+  -- the relationship directories were saved with leading slashes, we must
+  -- add it if it was removed during path normalization
+  directory = directory:match("^/") and directory or "/"..directory
   local rel_table = relationships[directory] or {}
   local relation_dest = rel_table[rid]
   if relation_dest then
@@ -180,7 +189,7 @@ end
 function Xlsx:load_sheet(name)
   local dom = self:load_zip_xml(name)
   local sheet_obj = setmetatable({}, Sheet)
-  sheet_obj:set_parent(self)
+  sheet_obj:set_parent(self,name)
   sheet_obj:load_dom(name, dom)
   return sheet_obj
 end
