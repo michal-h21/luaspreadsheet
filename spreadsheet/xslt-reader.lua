@@ -159,8 +159,17 @@ end
 
 function Xlsx:load_shared_strings(filename)
   local string_dom = self:load_zip_xml(filename)
+  local shared_strings = {}
+  local pos = 0
+  for _, si in ipairs(string_dom:query_selector("si")) do
+    shared_strings[pos] = si
+    pos = pos+1
+  end
+  -- we must correct the pos variable for logging
+  if pos > 0 then pos = pos - 1 end
+  log.info("Loaded ".. pos .." shared strings")
   -- print(string_dom:serialize())
-  self.shared_strings = string_dom
+  self.shared_strings = shared_strings
 end
 
 function Xlsx:find_file_by_id(rid,directory)
@@ -234,6 +243,7 @@ function Sheet:set_parent(parent,filename)
   self.directory = parent:get_directory(filename)
   self.load_zip_xml = parent.load_zip_xml
   self.find_file_by_id = parent.find_file_by_id
+  self.shared_strings = parent.shared_strings
   self.file = parent.file
 end
 
@@ -250,25 +260,21 @@ function Sheet:load_dom(name, dom)
   self:load_merge_cells(dom)
   self:load_named_ranges(dom)
   self:load_columns(dom)
+  self:process_rows(dom)
   -- xxx("sheetData")
   -- xxx("dimension")
-  for _, row in ipairs(dom:query_selector("row")) do
-    -- print(row:serialize())
-  end
-  -- xxx("sheetViews")
-  log.info("sheet ".. name .. " has " ..rows .. " rows")
   print(dom:serialize())
   return dom
 end
 
 function Sheet:load_merge_cells(dom)
-  local merge_cell = dom:query_selector("mergeCell") 
+  local merge_cell = dom:query_selector("mergeCell")
   -- merge cells are included in the <mergeCell> element
   local merge_cells = self.merge_cells or {}
   for _, merge in ipairs(merge_cell) do
     -- ref are in the A1:B2 form
-    -- we will save them in a hash table, indexed by the first reference, because 
-    -- it is possible to retrieve them quickly, as all cells have reference attribute 
+    -- we will save them in a hash table, indexed by the first reference, because
+    -- it is possible to retrieve them quickly, as all cells have reference attribute
     local ref = merge:get_attribute("ref")
     local first_ref = ref:match("([^%:]+)")
     merge_cells[first_ref] = ref
@@ -317,8 +323,53 @@ function Sheet:load_named_ranges(dom)
   end
   self.named_ranges = named_ranges
 end
-  
 
+function Sheet:process_rows(dom)
+  local rows = {}
+  for _, row in ipairs(dom:query_selector("row")) do
+    -- prepare table with empty columns according to table column count
+    local n = tonumber(row:get_attribute("r"))
+    local column = self:prepare_row()
+    log.info("Row: ".. n.. " width "..#column)
+    for _, cell in ipairs(row:query_selector("c")) do
+      local pos, content = self:parse_cell(cell)
+      column[pos]= content:get_text()
+    end
+    print(table.concat(column, "\t&\t"))
+  end
+  -- xxx("sheetViews")
+  -- log.info("sheet ".. name .. " has " ..rows .. " rows")
+end
+
+function Sheet:prepare_row()
+  local t = {}
+  -- make table with empty columns according to table width
+  for i=1, self.columns do
+    t[i] = ""
+  end
+  return t
+end
+
+--- Parse cell contents
+function Sheet:parse_cell(cell)
+  local range = cell:get_attribute("r")
+  local style = cell:get_attribute("s")
+  local t = cell:get_attribute("t")
+  -- find horizontal position in the row
+  -- it suffices to get only the first dimension
+  local pos = ranges.get_range(range)
+  local value
+  -- get the shared strings, value otherwise
+  if t == "s" then
+    ref = tonumber(cell:get_text())
+    value = self.shared_strings[ref]
+  else
+    value = cell:query_selector("v")[1]
+  end
+  -- handle an empty cell
+  value = value or cell
+  return pos, value
+end
 
 function Sheet:load_columns(dom)
   local columns = dom:query_selector("cols")[1]
