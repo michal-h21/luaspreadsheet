@@ -139,9 +139,10 @@ function Xlsx:load_relationships(filename)
   local current = {}
   local dom = self:load_zip_xml(filename)
   for _, el in ipairs(dom:query_selector("Relationship")) do
-    local id, target, schema = el:get_attribute("id"), el:get_attribute("target"), el:get_attribute("type") 
+    local id, target, schema = el:get_attribute("id"), el:get_attribute("target"), el:get_attribute("type")
     -- we must construct full path to the target file
     local fulltarget = path .. target
+    fulltarget = self:normalize_path(fulltarget)
     current[id] = {target = fulltarget, type = schema}
   end
   relationships[path] = current
