@@ -246,14 +246,81 @@ function Sheet:load_dom(name, dom)
   local function xxx(sel)
     print(sel,dom:query_selector(sel)[1]:serialize())
   end
+  self:save_dimensions(dom)
+  self:load_merge_cells(dom)
+  self:load_named_ranges(dom)
+  self:load_columns(dom)
   -- xxx("sheetData")
-  local dimension = dom:query_selector("dimension")[1]:get_attribute("ref")
-  print(ranges.get_range(dimension))
   -- xxx("dimension")
-  xxx("sheetViews")
-  xxx("cols")
+  for _, row in ipairs(dom:query_selector("row")) do
+    -- print(row:serialize())
+  end
+  -- xxx("sheetViews")
   log.info("sheet ".. name .. " has " ..rows .. " rows")
+  print(dom:serialize())
   return dom
+end
+
+function Sheet:load_merge_cells(dom)
+  local merge_cell = dom:query_selector("mergeCell") 
+  -- merge cells are included in the <mergeCell> element
+  local merge_cells = self.merge_cells or {}
+  for _, merge in ipairs(merge_cell) do
+    -- ref are in the A1:B2 form
+    -- we will save them in a hash table, indexed by the first reference, because 
+    -- it is possible to retrieve them quickly, as all cells have reference attribute 
+    local ref = merge:get_attribute("ref")
+    local first_ref = ref:match("([^%:]+)")
+    merge_cells[first_ref] = ref
+  end
+  self.merge_cells = merge_cells
+end
+
+function Sheet:save_dimensions(dom)
+  -- parse the dimension info to find number of columns and rows
+  local dimobj = dom:query_selector("dimension")
+  if dimobj then
+    local dimension = dimobj[1]:get_attribute("ref")
+    -- what is the number of columns and rows? we should construct the table where
+    -- each row has number of columns equal to self.columns, in order to support the
+    -- ranges properly
+    self.left,self.top,self.columns,self.rows = ranges.get_range(dimension)
+  else
+    log.warning("Cannot find table dimensions")
+  end
+end
+
+-- named ranges enables us to reference to cells using names, rather than A1:B2 ranges
+-- but the current form doesn't work, it seems that named ranges are saved in another file,
+-- in xl/tables/ directory
+function Sheet:load_named_ranges(dom)
+  local table_parts = dom:query_selector("tablePart")
+  -- print("ranges", #rangeobj)
+  local named_ranges = {}
+  for _, range in ipairs(table_parts) do
+    local rid = range:get_attribute("r:id")
+    local filename = self:find_file_by_id(rid, self.directory)
+    if filename then
+      local range_table = self:load_zip_xml(filename)
+      local tbl = range_table:query_selector("table")[1]
+      local name = tbl:get_attribute("displayname")
+      local ref = tbl:get_attribute("ref")
+      named_ranges[name] = ref
+    end
+    -- local name = range:get_attribute("name")
+    -- local content = range:get_text()
+    -- print("named range", name, content)
+    -- named_ranges[name] = content
+  end
+  self.named_ranges = named_ranges
+end
+  
+
+
+function Sheet:load_columns(dom)
+  local columns = dom:query_selector("cols")[1]
+  -- print(columns:serialize())
+
 end
 
 M.load = load
