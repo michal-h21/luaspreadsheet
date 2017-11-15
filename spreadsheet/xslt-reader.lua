@@ -272,6 +272,7 @@ function Sheet:load_merge_cells(dom)
     local ref = merge:get_attribute("ref")
     local first_ref = ref:match("([^%:]+)")
     merge_cells[first_ref] = ref
+    log.info("Merge cells: ".. ref)
   end
   self.merge_cells = merge_cells
 end
@@ -281,6 +282,7 @@ function Sheet:save_dimensions(dom)
   local dimobj = dom:query_selector("dimension")
   if dimobj then
     local dimension = dimobj[1]:get_attribute("ref")
+    log.info("Sheet dimensions: " .. dimension)
     -- what is the number of columns and rows? we should construct the table where
     -- each row has number of columns equal to self.columns, in order to support the
     -- ranges properly
@@ -306,6 +308,7 @@ function Sheet:load_named_ranges(dom)
       local name = tbl:get_attribute("displayname")
       local ref = tbl:get_attribute("ref")
       named_ranges[name] = ref
+      log.info("Named range " .. name .. ": ".. ref)
     end
     -- local name = range:get_attribute("name")
     -- local content = range:get_text()
