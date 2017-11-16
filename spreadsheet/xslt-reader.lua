@@ -48,7 +48,7 @@ function Xlsx:load(filename)
   log.info("Loading "..filename)
   local zip_file = zip.open(filename)
   self.file = zip_file
-  self.log = {}
+  self.saved_sheets = {}
   -- load file with pointer to other files
   local content_types, msg = self:load_zip_xml("[Content_Types].xml")
   if not content_types then
@@ -196,10 +196,14 @@ function Xlsx:find_file_by_id(rid,directory)
 end
 
 function Xlsx:load_sheet(name)
-  local dom = self:load_zip_xml(name)
-  local sheet_obj = setmetatable({}, Sheet)
-  sheet_obj:set_parent(self,name)
-  sheet_obj:load_dom(name, dom)
+  local sheet_obj = self.saved_sheets[name]
+  if not sheet_obj then
+    local dom = self:load_zip_xml(name)
+    sheet_obj = setmetatable({}, Sheet)
+    sheet_obj:set_parent(self,name)
+    sheet_obj:load_dom(name, dom)
+    self.saved_sheets[name] = sheet_obj
+  end
   return sheet_obj
 end
 
