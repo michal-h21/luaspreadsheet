@@ -140,8 +140,11 @@ function Xlsx:load_relationships(filename)
   local dom = self:load_zip_xml(filename)
   for _, el in ipairs(dom:query_selector("Relationship")) do
     local id, target, schema = el:get_attribute("id"), el:get_attribute("target"), el:get_attribute("type")
-    -- we must construct full path to the target file
-    local fulltarget = path .. target
+    -- we must construct full path to the target file. but exclude hyperlinks
+    local fulltarget = target
+    if not schema:match("hyperlink$") then
+      fulltarget = path .. target
+    end
     fulltarget = self:normalize_path(fulltarget)
     current[id] = {target = fulltarget, type = schema}
   end
@@ -249,6 +252,7 @@ function Sheet:set_parent(parent,filename)
   self.find_file_by_id = parent.find_file_by_id
   self.shared_strings = parent.shared_strings
   self.file = parent.file
+  self.table = {}
 end
 
 function Sheet:get_parent()
@@ -263,6 +267,7 @@ function Sheet:load_dom(name, dom)
   self:save_dimensions(dom)
   self:load_merge_cells(dom)
   self:load_named_ranges(dom)
+  self:load_links(dom)
   self:load_columns(dom)
   self:process_rows(dom)
   -- xxx("sheetData")
@@ -362,24 +367,99 @@ function Sheet:parse_cell(cell)
   -- find horizontal position in the row
   -- it suffices to get only the first dimension
   local pos = ranges.get_range(range)
-  local value
-  -- get the shared strings, value otherwise
+  -- get the shared strings, replace the current value of cell
   if t == "s" then
-    ref = tonumber(cell:get_text())
-    value = self.shared_strings[ref]
-  else
-    value = cell:query_selector("v")[1]
+    local ref = tonumber(cell:get_text())
+    cell = self.shared_strings[ref]
   end
+  local value = self:handle_values(cell)
+  value.style = self:get_cell_style(style) 
   -- handle an empty cell
-  value = value or cell
   return pos, value
 end
 
+
+
+function Sheet:handle_values(cell)
+  local children = {}
+  local current_style = {}
+  local name = cell:get_element_name()
+  log.info("top cell: ".. name)
+  -- the cell can contain values in v element, or inline strings in t elements
+  -- we don't need to handle inline styles
+  if name == "c" then
+    local elements = cell:query_selector("v,t")
+    for _, el in ipairs(elements) do
+      local value = el:get_text()
+      table.insert(children, {value = value})
+    end
+  -- the text from shared text table. it may contain rich text styles, which should be handled
+  else
+    for _, el in ipairs(cell:query_selector("t")) do
+      local value = el:get_text()
+      local prev = el:get_prev_node()
+      -- is rPr element always placed before the t element? In the specification it always is.
+      if prev and prev:is_element() and prev:get_element_name() == "rPr" then
+        current_style = self:get_inline_style(prev)
+      end
+      table.insert(children, {value = value, style = current_style})
+      -- reset the current style
+      current_style = {}
+    end
+  end
+
+  for _, k in ipairs(children) do
+    log.info("element text: " .. string.format('"%s"',k.value))
+    if k.style then
+      for x,y in pairs(k.style) do
+        log.info("inline style: ".. x .. " : ".. tostring(y))
+      end
+    end
+  end
+  return cell
+end
+
+function Sheet:get_inline_style(el)
+  local style = {}
+  el:traverse_elements(function(curr)
+    local name = curr:get_element_name()
+    if name == "b" then
+      style.bold = true
+    elseif name == "i" then
+      style.italic = true
+    elseif name == "sz" then
+      style.size = curr:get_attribute("val")
+    elseif name == "color" then
+      -- we support only rgb color, not the indexed palletes
+      style.color = curr:get_attribute("rgb")
+    end
+  end)
+  return style
+end
+
+function Sheet:get_cell_style(style)
+  log.info("get cell style", style)
+end
 function Sheet:load_columns(dom)
   local columns = dom:query_selector("cols")[1]
   -- print(columns:serialize())
 
 end
 
+function Sheet:load_links(dom)
+  local links = {}
+  for _, link in ipairs(dom:query_selector("hyperlink")) do
+    local ref = link:get_attribute("ref")
+    -- display is text in the cell which forms the hyperlink
+    local display = link:get_attribute("display")
+    local rid = link:get_attribute("r:id")
+    local href = self:find_file_by_id(rid, self.directory)
+    log.info("link: ".. ref .. " : " .. href)
+    -- there can be only one hyperlink in one cell, so we can use the 
+    -- ref as table key for fast acces.
+    links[ref]= {link = href, display = display}
+  end
+  self.links = links
+end
 M.load = load
 return M
