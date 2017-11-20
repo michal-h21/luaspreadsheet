@@ -55,4 +55,10 @@ describe("Basic xlsx file loading should work", function()
     end
     assert.same(s, "")
   end)
+  it("Links should work", function()
+    local cell = sheet.table[9][1]
+    for _, x in ipairs(cell) do
+      print(x.style.link, x.value)
+    end
+  end)
 end)
