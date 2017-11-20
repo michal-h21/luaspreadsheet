@@ -268,6 +268,7 @@ function Sheet:load_dom(name, dom)
   self:load_columns(dom)
   -- make table with all data
   self:process_rows(dom)
+  -- todo: add merged cells and links to the table
   -- xxx("sheetData")
   -- xxx("dimension")
   return dom
@@ -330,16 +331,29 @@ end
 
 function Sheet:process_rows(dom)
   local rows = {}
+  lastn = 0
   for _, row in ipairs(dom:query_selector("row")) do
-    -- prepare table with empty columns according to table column count
+    -- there may be empty rows, we must add blank rows to the generated table
     local n = tonumber(row:get_attribute("r"))
+    -- if the diff is bigger than 1, there are empty rows
+    local diff = n - lastn
+    -- prepare table with empty columns according to table column count
     local column = self:prepare_row()
+    -- the
+    column.index = n
     log.info("Row: ".. n.. " width "..#column)
     for _, cell in ipairs(row:query_selector("c")) do
       local pos, content = self:parse_cell(cell)
       column[pos]= content
     end
-    rows[#rows+1] = column
+    if diff > 1 then
+      -- add empty rows
+      for i= lastn+1, n-1 do
+        rows[#rows+1] = self:prepare_row()
+      end
+    end
+    rows[n] = column
+    lastn = n
   end
   self.table = rows
 
