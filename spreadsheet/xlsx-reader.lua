@@ -269,6 +269,7 @@ function Sheet:load_dom(name, dom)
   -- make table with all data
   self:process_rows(dom)
   -- todo: add merged cells and links to the table
+  self:save_links()
   -- xxx("sheetData")
   -- xxx("dimension")
   return dom
@@ -472,6 +473,28 @@ function Sheet:load_links(dom)
     links[ref]= {link = href, display = display}
   end
   self.links = links
+end
+
+--- Save the loaded links to cells where they were used
+function Sheet:save_links()
+  local links = self.links
+  local tbl = self.table
+  for ref, data in pairs(links) do
+    local x,y = ranges.get_range(ref)
+    local cell = tbl[y][x]
+    if not cell then
+      log.error("Cannot apply link " .. data.link .. " to cell ".. ref)
+    else
+      -- find linked text in cell text parts
+      for _,v in ipairs(cell) do
+        if v.value == data.display then
+          local style = v.style or {}
+          style.href = data.link
+          v.style = style
+        end
+      end
+    end
+  end
 end
 M.load = load
 return M
