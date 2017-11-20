@@ -489,7 +489,7 @@ function Sheet:save_links()
       for _,v in ipairs(cell) do
         if v.value == data.display then
           local style = v.style or {}
-          style.href = data.link
+          style.link = data.link
           v.style = style
         end
       end
