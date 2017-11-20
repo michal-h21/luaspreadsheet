@@ -1,7 +1,7 @@
 kpse.set_program_name "luatex"
-local xslt = require "spreadsheet.xslt-reader"
+local xlsx = require "spreadsheet.xlsx-reader"
 
-local lo,msg  = xslt.load("pokus.xlsx")
+local lo,msg  = xlsx.load("pokus.xlsx")
 
 -- local obj,msg  = xslt.load("odpis.xlsx")
 
