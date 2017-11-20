@@ -261,18 +261,15 @@ end
 
 function Sheet:load_dom(name, dom)
   local rows = #dom:query_selector("row")
-  local function xxx(sel)
-    print(sel,dom:query_selector(sel)[1]:serialize())
-  end
   self:save_dimensions(dom)
   self:load_merge_cells(dom)
   self:load_named_ranges(dom)
   self:load_links(dom)
   self:load_columns(dom)
+  -- make table with all data
   self:process_rows(dom)
   -- xxx("sheetData")
   -- xxx("dimension")
-  print(dom:serialize())
   return dom
 end
 
@@ -312,7 +309,6 @@ end
 -- in xl/tables/ directory
 function Sheet:load_named_ranges(dom)
   local table_parts = dom:query_selector("tablePart")
-  -- print("ranges", #rangeobj)
   local named_ranges = {}
   for _, range in ipairs(table_parts) do
     local rid = range:get_attribute("r:id")
@@ -327,7 +323,6 @@ function Sheet:load_named_ranges(dom)
     end
     -- local name = range:get_attribute("name")
     -- local content = range:get_text()
-    -- print("named range", name, content)
     -- named_ranges[name] = content
   end
   self.named_ranges = named_ranges
@@ -342,10 +337,12 @@ function Sheet:process_rows(dom)
     log.info("Row: ".. n.. " width "..#column)
     for _, cell in ipairs(row:query_selector("c")) do
       local pos, content = self:parse_cell(cell)
-      column[pos]= content:get_text()
+      column[pos]= content
     end
-    print(table.concat(column, "\t&\t"))
+    rows[#rows+1] = column
   end
+  self.table = rows
+
   -- xxx("sheetViews")
   -- log.info("sheet ".. name .. " has " ..rows .. " rows")
 end
@@ -353,8 +350,9 @@ end
 function Sheet:prepare_row()
   local t = {}
   -- make table with empty columns according to table width
+  -- it must be number indexed table with value field with empty string
   for i=1, self.columns do
-    t[i] = ""
+    t[i] = {{value=""}}
   end
   return t
 end
@@ -373,7 +371,7 @@ function Sheet:parse_cell(cell)
     cell = self.shared_strings[ref]
   end
   local value = self:handle_values(cell)
-  value.style = self:get_cell_style(style) 
+  value.style = self:get_cell_style(style)
   -- handle an empty cell
   return pos, value
 end
@@ -416,7 +414,7 @@ function Sheet:handle_values(cell)
       end
     end
   end
-  return cell
+  return children
 end
 
 function Sheet:get_inline_style(el)
