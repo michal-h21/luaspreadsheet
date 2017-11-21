@@ -348,12 +348,12 @@ function Sheet:process_rows(dom)
       local pos, content = self:parse_cell(cell)
       column[pos]= content
     end
-    if diff > 1 then
+    -- if diff > 1 then
       -- add empty rows
-      for i= lastn+1, n-1 do
-        rows[#rows+1] = self:prepare_row()
-      end
-    end
+      -- for i= lastn+1, n-1 do
+        -- rows[#rows+1] = self:prepare_row()
+      -- end
+    -- end
     rows[n] = column
     lastn = n
   end
