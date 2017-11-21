@@ -336,6 +336,7 @@ function Sheet:process_rows(dom)
   for _, row in ipairs(dom:query_selector("row")) do
     -- there may be empty rows, we must add blank rows to the generated table
     local n = tonumber(row:get_attribute("r"))
+    if n > self.rows then break end
     -- if the diff is bigger than 1, there are empty rows
     local diff = n - lastn
     -- prepare table with empty columns according to table column count
