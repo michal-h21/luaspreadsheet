@@ -338,6 +338,7 @@ function Sheet:process_rows(dom)
     local n = tonumber(row:get_attribute("r"))
     if n > self.rows then break end
     -- if the diff is bigger than 1, there are empty rows
+    -- what to do with them? the renderer should handle them.
     local diff = n - lastn
     -- prepare table with empty columns according to table column count
     local column = self:prepare_row()
