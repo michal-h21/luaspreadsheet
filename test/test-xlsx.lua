@@ -17,7 +17,10 @@ describe("Basic xlsx file loading should work", function()
   end)
   it("Should load data", function()
     assert.truthy(sheet.columns > 0)
-    assert.same(#sheet.table, sheet.rows)
+    local max_index = 0
+    local max = math.max
+    for index, _ in pairs(sheet.table) do max_index = max(index, max_index) end
+    assert.same(max_index, sheet.rows)
   end)
   local first = sheet.table[1]
   it("There should be correct number of columns", function()
@@ -46,19 +49,28 @@ describe("Basic xlsx file loading should work", function()
   end)
   it("The empty row should be really empty", function()
     local empty = sheet.table[8]
-    assert.same(#empty, 3)
-    local s = ""
-    for _, cell in ipairs(empty) do
-      for _, x in ipairs(cell) do
-        s = s .. x.value
-      end
-    end
-    assert.same(s, "")
+    assert.same(empty, nil)
+    -- local s = ""
+    -- for _, cell in ipairs(empty) do
+    --   for _, x in ipairs(cell) do
+    --     s = s .. x.value
+    --   end
+    -- end
+    -- assert.same(s, "")
   end)
   it("Links should work", function()
     local cell = sheet.table[9][1]
-    for _, x in ipairs(cell) do
-      print(x.style.link, x.value)
-    end
+    assert.same(cell[1].style.link, "http:/www.seznam.cz")
   end)
+end)
+describe("Excel file test", function()
+  local obj,msg  = xlsx.load("odpis.xlsx")
+  local sheet = obj:get_sheet("List1")
+  print(sheet.columns, sheet.rows)
+  local data = sheet.table
+  for i = 1, sheet.rows do
+    if data[i] then
+      -- print(i,data[i])
+    end
+  end
 end)
