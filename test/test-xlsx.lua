@@ -63,14 +63,14 @@ describe("Basic xlsx file loading should work", function()
     assert.same(cell[1].style.link, "http:/www.seznam.cz")
   end)
 end)
-describe("Excel file test", function()
-  local obj,msg  = xlsx.load("odpis.xlsx")
-  local sheet = obj:get_sheet("List1")
-  print(sheet.columns, sheet.rows)
-  local data = sheet.table
-  for i = 1, sheet.rows do
-    if data[i] then
-      -- print(i,data[i])
-    end
-  end
-end)
+-- describe("Excel file test", function()
+--   local obj,msg  = xlsx.load("odpis.xlsx")
+--   local sheet = obj:get_sheet("List1")
+--   print(sheet.columns, sheet.rows)
+--   local data = sheet.table
+--   for i = 1, sheet.rows do
+--     if data[i] then
+--       -- print(i,data[i])
+--     end
+--   end
+-- end)
