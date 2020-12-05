@@ -1,10 +1,10 @@
 require "busted.runner" ()
 kpse.set_program_name "luatex"
 
-local log = require "spreadsheet.log"
-local xlsx = require "spreadsheet.xlsx-reader"
+local log = require "spreadsheet.spreadsheet-log"
+local xlsx = require "spreadsheet.spreadsheet-xlsx-reader"
 
-log.level="warn"
+log.level="debug"
 describe("Basic xlsx file loading should work", function()
   local lo,msg  = xlsx.load("test/pokus.xlsx")
   it("Parse the xlst file", function()

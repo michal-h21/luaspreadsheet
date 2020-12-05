@@ -2,8 +2,8 @@
 local M = {}
 local zip = require "zip"
 local domobject = require "luaxml-domobject"
-local log = require "spreadsheet.log"
-local ranges = require "spreadsheet.ranges"
+local log = require "spreadsheet.spreadsheet-log"
+local ranges = require "spreadsheet.spreadsheet-ranges"
 
 
 --- @type Xlsx object
