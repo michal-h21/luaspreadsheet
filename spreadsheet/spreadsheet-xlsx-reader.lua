@@ -54,6 +54,8 @@ function Xlsx:load(filename)
   if not content_types then
     return nil, msg
   end
+  -- load default relationships
+  self:load_relationships("/_rels/.rels", "")
   self.content_types = content_types
   -- load workbook, styles and shared_strings, save worksheets
   for _, override in ipairs(content_types:query_selector("Override")) do
@@ -102,6 +104,7 @@ function Xlsx:load_workbook(filename)
   local directory = self:get_directory(filename)
   workbook.directory = directory
   log.info("workbook path:".. directory)
+  self:load_relationships(directory .. "_rels/" .. filename:match("([^%/]+)$") .. ".rels" )
   local sheets = {}
   -- save the worksheet names and identifiers
   for _, sheet in ipairs(workbook:query_selector("sheet")) do
@@ -131,13 +134,14 @@ function Xlsx:normalize_path(path)
   return table.concat(parts, "/")
 end
 
-function Xlsx:load_relationships(filename)
+function Xlsx:load_relationships(filename, path)
   -- each relationship file correspond to the parent directory
   -- so we must find that corresponding dir
-  local path = filename:match("(.-)_rels")
+  local path = path or filename:match("(.-)_rels")
   local relationships = self.relationships or {}
   local current = {}
   local dom = self:load_zip_xml(filename)
+  if not dom then return false, "Cannot load relationships file" .. filename end
   for _, el in ipairs(dom:query_selector("Relationship")) do
     local id, target, schema = el:get_attribute("id"), el:get_attribute("target"), el:get_attribute("type")
     -- we must construct full path to the target file. but exclude hyperlinks
@@ -186,7 +190,7 @@ function Xlsx:find_file_by_id(rid,directory)
   -- the relationship directories were saved with leading slashes, we must
   -- add it if it was removed during path normalization
   directory = directory:match("^/") and directory or "/"..directory
-  local rel_table = relationships[directory] or {}
+  local rel_table = relationships[directory] or relationships[""] or {}
   local relation_dest = rel_table[rid]
   if relation_dest then
     local target = relation_dest.target
@@ -294,15 +298,17 @@ end
 function Sheet:save_dimensions(dom)
   -- parse the dimension info to find number of columns and rows
   local dimobj = dom:query_selector("dimension")
-  if dimobj then
+  if #dimobj > 0 then
     local dimension = dimobj[1]:get_attribute("ref")
     log.info("Sheet dimensions: " .. dimension)
     -- what is the number of columns and rows? we should construct the table where
     -- each row has number of columns equal to self.columns, in order to support the
     -- ranges properly
     self.left,self.top,self.columns,self.rows = ranges.get_range(dimension)
+    return true
   else
-    log.warning("Cannot find table dimensions")
+    log.warn("Cannot find table dimensions")
+    return false
   end
 end
 
