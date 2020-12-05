@@ -96,6 +96,13 @@ function Xlsx:get_directory(filename)
   return filename:match("(.-)[^/]+$")
 end
 
+function Xlsx:load_file_relationships(filename)
+  local directory = self:get_directory(filename)
+  local basename = filename:match("([^%/]+)$")
+  self:load_relationships(directory .. "_rels/" .. basename .. ".rels" )
+  self:load_relationships(directory .. "_rels/" .. basename .. ".rels" , "/" .. filename)
+end
+
 function Xlsx:load_workbook(filename)
   local workbook,msg = self:load_zip_xml(filename)
   -- because the paths in _rels table are relative to the current 
@@ -104,7 +111,7 @@ function Xlsx:load_workbook(filename)
   local directory = self:get_directory(filename)
   workbook.directory = directory
   log.info("workbook path:".. directory)
-  self:load_relationships(directory .. "_rels/" .. filename:match("([^%/]+)$") .. ".rels" )
+  self:load_file_relationships(filename)
   local sheets = {}
   -- save the worksheet names and identifiers
   for _, sheet in ipairs(workbook:query_selector("sheet")) do
@@ -265,10 +272,12 @@ end
 
 function Sheet:load_dom(name, dom)
   local rows = #dom:query_selector("row")
+  local parent = self:get_parent()
+  parent:load_file_relationships(name)
   self:save_dimensions(dom)
   self:load_merge_cells(dom)
   self:load_named_ranges(dom)
-  self:load_links(dom)
+  self:load_links(dom, name)
   self:load_columns(dom)
   -- make table with all data
   self:process_rows(dom)
@@ -461,15 +470,15 @@ function Sheet:load_columns(dom)
 
 end
 
-function Sheet:load_links(dom)
+function Sheet:load_links(dom, filename)
   local links = {}
   for _, link in ipairs(dom:query_selector("hyperlink")) do
     local ref = link:get_attribute("ref")
     -- display is text in the cell which forms the hyperlink
     local display = link:get_attribute("display")
     local rid = link:get_attribute("r:id")
-    local href = self:find_file_by_id(rid, self.directory)
-    log.info("link: ".. ref .. " : " .. href)
+    local href = self:find_file_by_id(rid, filename)
+    log.info("link: ".. ref .. " : " .. (href or ""))
     -- there can be only one hyperlink in one cell, so we can use the 
     -- ref as table key for fast acces.
     links[ref]= {link = href, display = display}
@@ -488,12 +497,21 @@ function Sheet:save_links()
       log.error("Cannot apply link " .. data.link .. " to cell ".. ref)
     else
       -- find linked text in cell text parts
-      for _,v in ipairs(cell) do
-        if v.value == data.display then
-          local style = v.style or {}
-          style.link = data.link
-          v.style = style
+      if #cell > 1 then 
+        for _,v in ipairs(cell) do
+          if v.value == data.display then
+            local style = v.style or {}
+            style.link = data.link
+            v.style = style
+          end
         end
+      elseif #cell == 1 then
+        -- there is just one text in the cell
+        local v = cell[1]
+        local style = v.style or {}
+        style.link = data.link or data.display
+        v.style = style
+
       end
     end
   end
