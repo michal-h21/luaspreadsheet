@@ -86,9 +86,9 @@ function Xlsx:load_zip_xml(filename)
   log.info("loading: ".. filename)
   local zip_file = self.file
   local dom, msg = load_zip_xml(zip_file,filename)
-  if not dom then 
-    log.error("Cannot parse XML from " .. filename)
-  end
+  -- if not dom then 
+    -- log.error("Cannot parse XML from " .. filename)
+  -- end
   return dom, msg
 end
 
