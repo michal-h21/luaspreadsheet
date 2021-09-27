@@ -314,6 +314,13 @@ function Sheet:save_dimensions(dom)
     -- each row has number of columns equal to self.columns, in order to support the
     -- ranges properly
     self.left,self.top,self.columns,self.rows = ranges.get_range(dimension)
+    if self.columns == nil then
+      self.columns = #dom:query_selector("cols col")
+    end
+    if self.rows == nil then
+      self.rows = #dom:query_selector("row")
+    end
+    log.info("columns and rows", self.coumns, self.rows)
     return true
   else
     log.warn("Cannot find table dimensions")
