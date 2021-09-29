@@ -29,6 +29,9 @@ for i, v in ipairs(modes) do
   levels[v.name] = i
 end
 
+-- set default log level
+log.default_level = levels[log.level]
+
 
 local round = function(x, increment)
   increment = increment or 1
@@ -57,7 +60,7 @@ for i, x in ipairs(modes) do
   log[x.name] = function(...)
     
     -- Return early if we're below the log level
-    if i < levels[log.level] then
+    if i < (levels[log.level] or log.default_level) then
       return
     end
 
