@@ -4,6 +4,7 @@ local zip = require "zip"
 local domobject = require "luaxml-domobject"
 local log = require "spreadsheet.spreadsheet-log"
 local ranges = require "spreadsheet.spreadsheet-ranges"
+local styles = require "spreadsheet.spreadsheet-xlsx-number-styles"
 
 
 --- @type Xlsx object
@@ -163,12 +164,14 @@ function Xlsx:load_relationships(filename, path)
   self.relationships = relationships
 end
 
+
+
 function Xlsx:load_styles(filename)
   local  dom = self:load_zip_xml(filename)
   -- for _, cell in ipairs(dom:query_selector("cellStyle")) do
     -- print(cell:serialize())
   -- end
-  self.styles = dom
+  self.styles = styles.load_styles(dom)
 end
 
 function Xlsx:load_shared_strings(filename)
@@ -409,6 +412,28 @@ function Sheet:parse_cell(cell)
   return pos, value
 end
 
+local function convert_date(num)
+  -- Excel dates start at year 1900. This function converts 
+  -- it to timestamp suitable for os.date function
+  return math.floor((num - 25569) * 86400)
+end
+
+function Sheet:apply_style(value, style)
+  if style then
+    local num = tonumber(value)
+    if num then
+      local timestamp = convert_date(num)
+      print(value, num, timestamp)
+      print(os.date("%c", timestamp))
+    else
+      print("not num", value)
+    end
+  end
+  return value
+end
+
+
+
 
 
 function Sheet:handle_values(cell)
@@ -420,8 +445,9 @@ function Sheet:handle_values(cell)
   -- we don't need to handle inline styles
   if name == "c" then
     local elements = cell:query_selector("v,t")
+    local style = cell:get_attribute("s")
     for _, el in ipairs(elements) do
-      local value = el:get_text()
+      local value = self:apply_style(el:get_text(), style)
       table.insert(children, {value = value})
     end
   -- the text from shared text table. it may contain rich text styles, which should be handled
