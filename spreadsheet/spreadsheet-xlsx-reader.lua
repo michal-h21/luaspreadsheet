@@ -266,6 +266,7 @@ function Sheet:set_parent(parent,filename)
   self.find_file_by_id = parent.find_file_by_id
   self.shared_strings = parent.shared_strings
   self.file = parent.file
+  self.styles = parent.styles
   self.table = {}
 end
 
@@ -412,21 +413,14 @@ function Sheet:parse_cell(cell)
   return pos, value
 end
 
-local function convert_date(num)
-  -- Excel dates start at year 1900. This function converts 
-  -- it to timestamp suitable for os.date function
-  return math.floor((num - 25569) * 86400)
-end
 
-function Sheet:apply_style(value, style)
-  if style then
-    local num = tonumber(value)
-    if num then
-      local timestamp = convert_date(num)
-      print(value, num, timestamp)
-      print(os.date("%c", timestamp))
-    else
-      print("not num", value)
+function Sheet:apply_style(value, id)
+  local value = value
+  if id then
+    local style = styles.get_style(self.styles,id)
+    if style then
+      local num_format = styles.get_number_format(self.styles, style)
+      return styles.apply_number_format(num_format, value)
     end
   end
   return value

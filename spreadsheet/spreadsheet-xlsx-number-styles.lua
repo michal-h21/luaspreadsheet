@@ -53,17 +53,107 @@ function load_styles(dom)
   local cell_styles = {}
   -- load number formats
   for _, numfmt in ipairs(dom:query_selector("numFmt")) do
-    numFmtId="165" formatCode="dd/MM/yyyy"
     local id, code = numfmt:get_attribute("numfmtid"), numfmt:get_attribute("formatcode")
     number_formats[id] = code
   end
+  local cell_styles = {}
   for i, xf in ipairs(dom:query_selector("cellXfs xf")) do 
     -- we should add more formats in the future
-    local num_format = xf:get_attribute("numFmtId")
+    local num_format = xf:get_attribute("numfmtid")
+    cell_styles[#cell_styles+1] = {
+      num_format = num_format
+    }
   end
-  local styles = {dom = dom, number_formats = number_formats}
+  local styles = {dom = dom, number_formats = number_formats, cell_styles = cell_styles}
   return styles
 end
 
+local function get_style(styles, orig_id)
+  local id = tonumber(orig_id)
+  if id then 
+    --- get table with cell styles
+    local cell_styles = styles.cell_styles or {}
+    -- get the right id number
+    id = id + 1
+    return cell_styles[id]
+  end
+  return nil, "cannot load style"
+end
+
+local function get_number_format(styles, style)
+  local number_formats = styles.number_formats or {}
+  local style = style or {}
+  -- default style is "1"
+  local id = style.num_format or "1"
+  return number_formats[id]
+end
+
+local function convert_date(num)
+  -- Excel dates start at year 1900. This function converts 
+  -- it to timestamp suitable for os.date function
+  return math.floor((num - 25569) * 86400)
+end
+
+-- convert Excel format to string suitable for string.format
+local function get_string_format(num_format)
+  -- general formatting string used by default
+  if num_format == "General" then return "%s", false end
+  -- handle numbers
+  if num_format:match("[%#0]") then
+    -- number formats
+    -- at the moment we just print float or integer
+    if num_format:match("[%.%,]") then
+      return num_format:gsub("[0%#%.%,]+", "%%f")
+    else
+      return num_format:gsub("[0%#%.%]+", "%%i")
+    end
+  else
+    -- TODO: we just assume that other than general and number, format is date
+    -- which is obviously wrong. it should be fixed in the future
+    -- fix AM/PM
+    num_format = num_format:gsub("AM%/PM", "%%p")
+    -- fix months
+    num_format = num_format:gsub("([^m])m([^m])", "%1%%m%2"):gsub("MM", "%%m"):gsub(
+    "mmmmm", "%%b"):gsub( "mmmm", "%%B"):gsub( "mmm", "%%b"):gsub("mm", "%%m")
+    -- fix minutes
+    num_format = num_format:gsub("h(.)%%m", "h%1%%M"):gsub("%%m(.)s", "%%M%1s")
+    -- fix hours
+    if num_format:match("%%p") then -- use am/pm
+      num_format = num_format:gsub("[h]+", "%%I")
+    else
+      num_format = num_format:gsub("[h]+", "%%H")
+    end
+    -- fix seconds
+    num_format = num_format:gsub("ss", "%%S"):gsub("s", "%%S")
+    -- fix days
+    num_format = num_format:gsub("([^d])d([^d])", "%1%%d%2"):gsub("dddd", "%%A"):gsub(
+    "ddd", "%%a"):gsub("dd", "%%d")
+    -- fix years
+    num_format = num_format:gsub("yyyy", "%%Y"):gsub("yy", "%%y")
+    return num_format, true
+  end
+  -- return string by default
+  return "%s"
+end
+
+local function apply_number_format(num_format, value)
+  local num = tonumber(value)
+  local format, is_date = get_string_format(num_format)
+  if num then
+    if is_date then
+      local timestamp = convert_date(num)
+      -- print(value, num, timestamp)
+      -- print(os.date("%c", timestamp))
+      return os.date(format, timestamp)
+    else
+      return string.format(format, num)
+    end
+  end
+  return value
+end
+
 M.load_styles = load_styles
+M.apply_number_format = apply_number_format
+M.get_style   = get_style
+M.get_number_format = get_number_format
 return M
